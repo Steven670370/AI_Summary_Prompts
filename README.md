@@ -1,2 +1,2 @@
 # AI_Summary_Prompts
-Aim to increase the efficiency of using AI by training a program summarizing tokens through deep learning.
+Aims to improve AI efficiency by training a deep learning program to summarize tokens.
