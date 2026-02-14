@@ -2,71 +2,51 @@
 
 class WordEntry:
     """
-    - base: stem of words
-    - variants: original words
+    Store one canonical word and its surface variants.
     """
-    def __init__(self, base_word, original_word):
-        self.base = base_word
-        self.variants = set([original_word])
+    def __init__(self, word):
+        self.base = word
+        self.variants = set([word])
 
     def add_variant(self, word):
         self.variants.add(word)
 
 class WordCollection:
-    """
-    A collection of all words
-    """
     def __init__(self):
-        # key: base word, value: WordEntry
-        self.words = {}
-
+        # word → index
+        self.word2index = {}
+        # index → word
+        self.index2word = []
+        # word → WordEntry (for analysis only)
+        self.entries = {}
 
     def _normalize(self, word):
-        """
-        Removing prefixes and suffixes, such as -ing, -ed, -s, -es
-        """
-        word = word.lower()
-
-        for prefix in ['un', 're', 'pre']:
-            if word.startswith(prefix):
-                word = word[len(prefix):]
-
-        for suffix in ['ing', 'ed', 'ly', 'es', 's']:
-            if word.endswith(suffix):
-                word = word[:-len(suffix)]
-
-            if word.endswith('i'):
-                word = word[:-1] + 'y'
-                
-            if len(word) >= 2 and word[-1] == word[-2] and word[-1] not in 'aeiou':
-                word = word[:-1]
-
-
-        return word
-    
+        # 只做最小归一化
+        return word.lower()
 
     def add_word(self, word):
-        base = self._normalize(word)
-        if base in self.words:
-            self.words[base].add_variant(word)
-        else:
-            self.words[base] = WordEntry(base, word)
+        word = self._normalize(word)
 
-    
+        if word not in self.word2index:
+            index = len(self.index2word)
+
+            self.word2index[word] = index
+            self.index2word.append(word)
+
+            self.entries[word] = WordEntry(word)
+        else:
+            self.entries[word].add_variant(word)
+
     def encode(self, word):
-        """
-        return index
-        """
-        base = self._normalize(word)
-        if base not in self.words:
+        word = self._normalize(word)
+
+        if word not in self.word2index:
             self.add_word(word)
 
-        return list(sorted(self.words.keys())).index(base)
-
+        return self.word2index[word]
 
     def decode(self, index):
-        """
-        return base word
-        """
-        base = list(sorted(self.words.keys()))[index]
-        return base
+        return self.index2word[index]
+
+    def vocab_size(self):
+        return len(self.index2word)
