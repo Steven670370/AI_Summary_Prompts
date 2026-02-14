@@ -21,7 +21,6 @@ class WordCollection:
         self.entries = {}
 
     def _normalize(self, word):
-        # 只做最小归一化
         return word.lower()
 
     def add_word(self, word):
