@@ -35,11 +35,12 @@ class WordCollection:
             if word.endswith(suffix):
                 word = word[:-len(suffix)]
 
-        if len(word) >= 2 and word[-1] == word[-2] and word[-1] not in 'aeiou':
-            word = word[:-1]
+            if word.endswith('i'):
+                word = word[:-1] + 'y'
+                
+            if len(word) >= 2 and word[-1] == word[-2] and word[-1] not in 'aeiou':
+                word = word[:-1]
 
-        if word.endswith('i'):
-            word = word[:-1] + 'y'
 
         return word
     
