@@ -33,9 +33,7 @@ $$
 
 Which expands into next-token prediction:
 
-$$
-P(y_t \mid x, y_{<t})
-$$
+$P(y_t \mid x, y_{<t})$
 
 ---
 
