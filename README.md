@@ -1,52 +1,18 @@
-# Mini LLM From Scratch – Transformer-Based Prompt Generator
-
-## Project Overview
-This project is a minimal Large Language Model (LLM) built from scratch using the Transformer architecture.
-The goal is not to build a powerful production model, but to deeply understand how modern LLMs work internally.
-The model is trained to:
-`Convert natural user input into structured AI prompt instructions.`
-
-- *Example:*
-  - `I feel stressed and cannot sleep at night.`
-- *Output:*
-  - `Generate a supportive response that comforts a stressed user and provides sleep improvement advice.`
-
----
-
-## Learning Objectives
-- How language models predict the next token
-- How self-attention works mathematically
-- Why masking is required in causal language models
-- How embeddings represent words in vector space
-- How Transformer blocks are structured
-- How conditional text generation works
-- Why LLMs are fundamentally probability models
-
----
-
-## Core Idea
-The model learns the conditional probability:
-
-$$
-P(\text{output} \mid \text{input})
-$$
-
-Which expands into next-token prediction:
-
-$$
-P(y_t \mid x, y_{1:t-1})
-$$
-
----
-
-## Architecture
-- Character-level tokenizer (for simplicity)
-- Embedding layer
-- Positional encoding
-- Masked self-attention
-- Multi-head attention
-- Feed-forward network
-- Layer normalization
-- Residual connections
-- Linear output projection
-- Cross-entropy loss
+# AI Agent + Local GPT
+## Overview
+- This project combines a cloud-based AI agent (`ai_agent`) with a local lightweight GPT model to create a more specialized and professional AI assistant. 
+- By leveraging both local and cloud AI, the system refines queries, improves responses, and adapts to user feedback.
+## Features
+- Query Refinement: Local GPT transforms user input into precise prompts for the AI agent.
+- Hybrid Answering: Simple questions handled locally; complex queries sent to the AI agent.
+- User Feedback Learning: Stores responses and satisfaction to improve filtering and prompt generation.
+- Professionalization: Helps AI agent produce more accurate, context-aware answers.
+## Workflow
+1. User asks a question.
+2. Local GPT decides whether it can answer directly.
+3. If needed, it refines the question and forwards it to the AI agent.
+4. Response and user satisfaction are saved for continuous improvement.
+## Benefits
+- Faster responses for simple queries.
+- Higher quality, professional AI output.
+- Continuous improvement from user data.
