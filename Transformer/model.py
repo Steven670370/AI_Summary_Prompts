@@ -28,104 +28,138 @@ class Embedding:
         self.x_emb = x_emb  # save forward output for backward
         return x_emb
     
-    def backward(self, dX, token_ids, lr=1e-3):
+    def backward(self, dX, lr=1e-3):
         """
-        dX: [seq_len, d_model] gradients
-        token_ids: index of token
-        lr: learning rate
+        dX: [seq_len, d_model]
         """
-        self.embeddings[token_ids] -= lr * dX
-        return None  # no gradient needs to pass back
+
+        np.add.at(self.embeddings, self.token_ids, -lr * dX)
+
+        return None
+    
+
+# -----------------------
+# utils
+# -----------------------
 
 # Mixing    → Attention
 # Transform → FFN
-
-# Normalization
 def softmax(x):
-    e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
-    return e_x / np.sum(e_x, axis=-1, keepdims=True)
+    x = x - np.max(x, axis=-1, keepdims=True)
+    exp = np.exp(x)
+    return exp / np.sum(exp, axis=-1, keepdims=True)
+
+def softmax_backward(dout, out):
+    # out = softmax(x)
+    return out * (dout - np.sum(dout * out, axis=-1, keepdims=True))
+
+
+# -----------------------
+# Multi-Head Attention
+# -----------------------
 
 class MultiHeadSelfAttention:
     def __init__(self, d_model, num_heads):
         assert d_model % num_heads == 0
-        
+
         self.d_model = d_model
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
-        
-        # random weights
-        self.Wq = np.random.randn(d_model, d_model)
-        self.Wk = np.random.randn(d_model, d_model)
-        self.Wv = np.random.randn(d_model, d_model)
-        self.Wo = np.random.randn(d_model, d_model)
+
+        self.Wq = np.random.randn(d_model, d_model) * 0.02
+        self.Wk = np.random.randn(d_model, d_model) * 0.02
+        self.Wv = np.random.randn(d_model, d_model) * 0.02
+        self.Wo = np.random.randn(d_model, d_model) * 0.02
 
     def split_heads(self, X):
-        # [seq_len, d_model] → [num_heads, seq_len, d_k]
-        seq_len = X.shape[0]
-        X = X.reshape(seq_len, self.num_heads, self.d_k)
-        return X.transpose(1, 0, 2)
+        S = X.shape[0]
+        X = X.reshape(S, self.num_heads, self.d_k)
+        return X.transpose(1, 0, 2)  # (H, S, d_k)
 
     def combine_heads(self, X):
-        # [num_heads, seq_len, d_k] → [seq_len, d_model]
-        X = X.transpose(1, 0, 2)
-        seq_len = X.shape[0]
-        return X.reshape(seq_len, self.d_model)
+        X = X.transpose(1, 0, 2)  # (S, H, d_k)
+        S = X.shape[0]
+        return X.reshape(S, self.d_model)
 
     def forward(self, X):
-        Q = X @ self.Wq # Query: the information that token wants (filter)
-        K = X @ self.Wk # Key: features of each token (keys)
-        V = X @ self.Wv # Information that each token contains
-
-        # save inputs for backward
         self.X = X
-        self.Q = Q
-        self.K = K
-        self.V = V
 
-        self.Q_split = self.split_heads(Q)
-        self.K_split = self.split_heads(K)
-        self.V_split = self.split_heads(V)
+        self.Q = X @ self.Wq
+        self.K = X @ self.Wk
+        self.V = X @ self.Wv
 
-        scores = self.Q_split @ self.K_split.transpose(0, 2, 1)
-        scores = scores / np.sqrt(self.d_k)
+        self.Qh = self.split_heads(self.Q)
+        self.Kh = self.split_heads(self.K)
+        self.Vh = self.split_heads(self.V)
 
-        self.attention = softmax(scores)  # save attention matrix
-        self.attention_out = self.attention @ self.V_split
-        self.output = self.combine_heads(self.attention_out) @ self.Wo
+        self.scores = self.Qh @ self.Kh.transpose(0, 2, 1)
+        self.scores /= np.sqrt(self.d_k)
 
-        return self.output
-    
-    def backward(self, d_output, lr=1e-3):
-        # simplified backward (ignoring softmax internal gradient)
-        # d_output: [seq_len, d_model]
-        dWo = self.combine_heads(self.attention_out).T @ d_output
-        d_attention_out = d_output @ self.Wo.T
+        self.attn = softmax(self.scores)
 
-        dXq = d_attention_out @ self.Wq.T
-        dXk = d_attention_out @ self.Wk.T
-        dXv = d_attention_out @ self.Wv.T
+        self.Zh = self.attn @ self.Vh
+        self.Z = self.combine_heads(self.Zh)
+
+        self.out = self.Z @ self.Wo
+        return self.out
+
+    def backward(self, dout, lr=1e-3):
+        # -------- Wo --------
+        dWo = self.Z.T @ dout
+        dZ = dout @ self.Wo.T
+
+        # -------- split heads --------
+        dZh = self.split_heads(dZ)
+
+        # -------- Z = attn @ V --------
+        dAttn = dZh @ self.Vh.transpose(0, 2, 1)
+        dVh = self.attn.transpose(0, 2, 1) @ dZh
+
+        # -------- softmax --------
+        dScores = softmax_backward(dAttn, self.attn)
+
+        # -------- scaling --------
+        dScores /= np.sqrt(self.d_k)
+
+        # -------- scores = QK^T --------
+        dQh = dScores @ self.Kh
+        dKh = dScores.transpose(0, 2, 1) @ self.Qh
+
+        # -------- combine heads --------
+        dQ = self.combine_heads(dQh)
+        dK = self.combine_heads(dKh)
+        dV = self.combine_heads(dVh)
+
+        # -------- Q = XW --------
+        dWq = self.X.T @ dQ
+        dWk = self.X.T @ dK
+        dWv = self.X.T @ dV
+
+        dXq = dQ @ self.Wq.T
+        dXk = dK @ self.Wk.T
+        dXv = dV @ self.Wv.T
+
         dX = dXq + dXk + dXv
 
-        self.Wq -= lr * (self.X.T @ dXq)
-        self.Wk -= lr * (self.X.T @ dXk)
-        self.Wv -= lr * (self.X.T @ dXv)
+        # -------- update --------
+        self.Wq -= lr * dWq
+        self.Wk -= lr * dWk
+        self.Wv -= lr * dWv
         self.Wo -= lr * dWo
 
         return dX
 
+
+# -----------------------
+# Feed Forward
+# -----------------------
+
 class FeedForward:
-    
     def __init__(self, d_model, d_ff):
-        
-        self.d_model = d_model
-        self.d_ff = d_ff
-        
-        # first layer
-        self.W1 = np.random.randn(d_model, d_ff)
+        self.W1 = np.random.randn(d_model, d_ff) * 0.02
         self.b1 = np.zeros(d_ff)
-        
-        # second layer
-        self.W2 = np.random.randn(d_ff, d_model)
+
+        self.W2 = np.random.randn(d_ff, d_model) * 0.02
         self.b2 = np.zeros(d_model)
 
     def relu(self, x):
@@ -135,30 +169,23 @@ class FeedForward:
         return grad * (x > 0)
 
     def forward(self, X):
-        """
-        Input:
-            X shape = [seq_len, d_model]
-        
-        Output:
-            [seq_len, d_model]
-        """
-        self.X = X  # save for backward
-        self.hidden_linear = X @ self.W1 + self.b1  # save pre-activation
-        self.hidden = self.relu(self.hidden_linear)  # save post-activation
-        self.output = self.hidden @ self.W2 + self.b2  # save output
-        return self.output
-    
-    def backward(self, d_output, lr=1e-3):
-        dW2 = self.hidden.T @ d_output
-        db2 = np.sum(d_output, axis=0)
+        self.X = X
+        self.h1 = X @ self.W1 + self.b1
+        self.h2 = self.relu(self.h1)
+        self.out = self.h2 @ self.W2 + self.b2
+        return self.out
 
-        d_hidden = d_output @ self.W2.T
-        d_hidden = self.relu_backward(d_hidden, self.hidden_linear)
+    def backward(self, dout, lr=1e-3):
+        dW2 = self.h2.T @ dout
+        db2 = np.sum(dout, axis=0)
 
-        dW1 = self.X.T @ d_hidden
-        db1 = np.sum(d_hidden, axis=0)
+        dh = dout @ self.W2.T
+        dh = self.relu_backward(dh, self.h1)
 
-        dX = d_hidden @ self.W1.T
+        dW1 = self.X.T @ dh
+        db1 = np.sum(dh, axis=0)
+
+        dX = dh @ self.W1.T
 
         self.W2 -= lr * dW2
         self.b2 -= lr * db2
@@ -167,95 +194,104 @@ class FeedForward:
 
         return dX
 
+
+# -----------------------
+# LayerNorm
+# -----------------------
+
 class LayerNorm:
     def __init__(self, d_model, eps=1e-5):
-        self.d_model = d_model
-        self.eps = eps
-
         self.gamma = np.ones(d_model)
         self.beta = np.zeros(d_model)
+        self.eps = eps
 
     def forward(self, X):
-        """
-        X: [seq_len, d_model]
-        Normalize each token
-        """
-        self.X = X  # save input
-        self.mean = np.mean(X, axis=1, keepdims=True)
-        self.var = np.var(X, axis=1, keepdims=True)
-        self.X_norm = (X - self.mean) / np.sqrt(self.var + self.eps)  # save normalized X
-        self.output = self.gamma * self.X_norm + self.beta
-        return self.output
-    
-    def backward(self, d_output, lr=1e-3):
-        seq_len = self.X.shape[0]
-        dgamma = np.sum(d_output * self.X_norm, axis=0)
-        dbeta = np.sum(d_output, axis=0)
+        self.X = X
+        self.mean = X.mean(axis=1, keepdims=True)
+        self.var = X.var(axis=1, keepdims=True)
 
-        dX_norm = d_output * self.gamma
+        self.X_norm = (X - self.mean) / np.sqrt(self.var + self.eps)
+        return self.gamma * self.X_norm + self.beta
+
+    def backward(self, dout, lr=1e-3):
+        dgamma = np.sum(dout * self.X_norm, axis=0)
+        dbeta = np.sum(dout, axis=0)
+
+        dX_norm = dout * self.gamma
         var_eps = self.var + self.eps
-        dX = (1. / np.sqrt(var_eps)) * (dX_norm - np.mean(dX_norm, axis=1, keepdims=True)
-                                       - self.X_norm * np.mean(dX_norm * self.X_norm, axis=1, keepdims=True))
 
-        # update parameters
+        dX = (1. / np.sqrt(var_eps)) * (
+            dX_norm
+            - np.mean(dX_norm, axis=1, keepdims=True)
+            - self.X_norm * np.mean(dX_norm * self.X_norm, axis=1, keepdims=True)
+        )
+
         self.gamma -= lr * dgamma
         self.beta -= lr * dbeta
 
         return dX
 
-# x = x + f(x)
+
+# -----------------------
+# Transformer Block
+# -----------------------
+
 class TransformerBlock:
     def __init__(self, d_model, num_heads, d_ff):
-        self.attention = MultiHeadSelfAttention(d_model, num_heads)
-        self.ffn = FeedForward(d_model, d_ff)
-        
         self.ln1 = LayerNorm(d_model)
+        self.attn = MultiHeadSelfAttention(d_model, num_heads)
+
         self.ln2 = LayerNorm(d_model)
+        self.ffn = FeedForward(d_model, d_ff)
 
     def forward(self, X):
-        # Attention
-        attn_out = self.attention.forward(self.ln1.forward(X))
-        self.X1 = X  # save for backward
-        X = X + attn_out
+        self.X = X
 
-        # FFN
-        ffn_out = self.ffn.forward(self.ln2.forward(X))
-        self.X2 = X  # save for backward
-        X = X + ffn_out
+        self.ln1_out = self.ln1.forward(X)
+        self.attn_out = self.attn.forward(self.ln1_out)
+        self.res1 = X + self.attn_out
 
-        return X
-    
-    def backward(self, dX, lr=1e-3):
-        dX_ffn = self.ffn.backward(dX, lr)  # FFN backward
-        dX_ln2 = self.ln2.backward(dX_ffn, lr)
+        self.ln2_out = self.ln2.forward(self.res1)
+        self.ffn_out = self.ffn.forward(self.ln2_out)
+        self.out = self.res1 + self.ffn_out
 
-        dX_attn = self.attention.backward(dX_ln2, lr)
-        dX_ln1 = self.ln1.backward(dX_attn, lr)
+        return self.out
 
-        dX_total = dX_ln1 + dX
-        return dX_total
+    def backward(self, dout, lr=1e-3):
+        # ----- FFN residual -----
+        d_res1 = dout.copy()
+        d_ffn = dout.copy()
+
+        d_ffn = self.ffn.backward(d_ffn, lr)
+        d_ln2 = self.ln2.backward(d_ffn, lr)
+
+        d_res1 += d_ln2
+
+        # ----- Attention residual -----
+        d_attn = d_res1.copy()
+        d_attn = self.attn.backward(d_attn, lr)
+        d_ln1 = self.ln1.backward(d_attn, lr)
+
+        dX = d_res1 + d_ln1
+
+        return dX
+
+
+# -----------------------
+# Output Layer
+# -----------------------
 
 class OutputLayer:
     def __init__(self, d_model, vocab_size):
-        self.W = np.random.randn(d_model, vocab_size)
+        self.W = np.random.randn(d_model, vocab_size) * 0.02
 
     def forward(self, X):
-        """
-        X: [seq_len, d_model]
-        Output: [seq_len, vocab_size]
-        """
-        self.X = X  # save input
-        logits = X @ self.W
-        return logits
-    
-    def backward(self, d_logits, lr=1e-3):
-        """
-        d_logits: [seq_len, vocab_size]
-        self.X: [seq_len, d_model]
-        """
-        dW = self.X.T @ d_logits
-        dX = d_logits @ self.W.T
+        self.X = X
+        return X @ self.W
+
+    def backward(self, dlogits, lr=1e-3):
+        dW = self.X.T @ dlogits
+        dX = dlogits @ self.W.T
 
         self.W -= lr * dW
-
         return dX
