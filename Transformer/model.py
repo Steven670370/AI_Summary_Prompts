@@ -295,3 +295,28 @@ class OutputLayer:
 
         self.W -= lr * dW
         return dX
+    
+
+# -----------------------
+# Mini Transformer
+# -----------------------
+
+class MiniTransformer:
+    def __init__(self, vocab_size, d_model=32, num_heads=4, d_ff=64, seq_len=4):
+        self.embedding = Embedding(vocab_size, d_model, seq_len)
+        self.block = TransformerBlock(d_model, num_heads, d_ff)
+        self.output = OutputLayer(d_model, vocab_size)
+
+    def forward(self, x_ids):
+        """
+        x_ids: [seq_len]
+        """
+        x = self.embedding.get_embeddings(x_ids)
+        x = self.block.forward(x)
+        logits = self.output.forward(x)
+        return logits
+
+    def backward(self, dlogits, lr):
+        dX = self.output.backward(dlogits, lr)
+        dX = self.block.backward(dX, lr)
+        self.embedding.backward(dX, lr)
