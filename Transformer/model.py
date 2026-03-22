@@ -80,6 +80,10 @@ class MultiHeadSelfAttention:
         X = X.transpose(1, 0, 2)  # (S, H, d_k)
         S = X.shape[0]
         return X.reshape(S, self.d_model)
+    
+    def causal_mask(self, S):
+        mask = np.triu(np.ones((S, S)), k=1) * -1e9
+        return mask
 
     def forward(self, X):
         self.X = X
@@ -94,6 +98,9 @@ class MultiHeadSelfAttention:
 
         self.scores = self.Qh @ self.Kh.transpose(0, 2, 1)
         self.scores /= np.sqrt(self.d_k)
+
+        S = self.scores.shape[-1]
+        self.scores += self.causal_mask(S)
 
         self.attn = softmax(self.scores)
 
