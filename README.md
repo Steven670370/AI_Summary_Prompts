@@ -7,30 +7,30 @@ A hybrid AI assistant system that combines a cloud-based AI agent with a local l
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    User Interface (CLI)                      │
+│                    User Interface (CLI)                     │
 └─────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                Query Router & Decision Engine                │
+│                Query Router & Decision Engine               │
 │                     (AI_agent/router.py)                    │
 └─────────────────────────────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
         ▼                       ▼                       ▼
-┌───────────────┐     ┌─────────────────────┐   ┌───────────────┐
-│  Local GPT    │     │  Cloud AI Agent     │   │   Memory &    │
-│  (Transformer)│     │   (OpenAI GPT-4o)   │   │    Logging    │
-├───────────────┤     ├─────────────────────┤   ├───────────────┤
-│• MiniTransformer│   │• API-based queries │   │• SQLite DB    │
-│• NumPy-based   │   │• Complex reasoning  │   │• Response logs│
-│• On-device     │   │• Latest knowledge   │   │• User feedback│
-└───────────────┘     └─────────────────────┘   └───────────────┘
+┌─────────────────┐     ┌─────────────────────┐   ┌───────────────┐
+│  Local GPT      │     │  Cloud AI Agent     │   │   Memory &    │
+│  (Transformer)  │     │   (OpenAI GPT-4o)   │   │    Logging    │
+├─────────────────┤     ├─────────────────────┤   ├───────────────┤
+│• MiniTransformer│     │• API-based queries  │   │• SQLite DB    │
+│• NumPy-based    │     │• Complex reasoning  │   │• Response logs│
+│• On-device      │     │• Latest knowledge   │   │• User feedback│
+└─────────────────┘     └─────────────────────┘   └───────────────┘
         │                       │                       │
         └───────────────────────┼───────────────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                Response Aggregation & Learning               │
+│                Response Aggregation & Learning              │
 │              (RAG + Feedback loop integration)              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -70,7 +70,7 @@ A hybrid AI assistant system that combines a cloud-based AI agent with a local l
 - **Quality Filtering**: Filters and improves cloud responses using local intelligence
 
 ### Learning & Adaptation
-- **Feedback Loop**: Stores user satisfaction scores (👍/👎) for continuous improvement
+- **Feedback Loop**: Stores user satisfaction scores for continuous improvement
 - **RAG Enhancement**: Uses past high-quality responses for context in new queries
 - **Progressive Improvement**: System becomes more accurate as training data accumulates
 
