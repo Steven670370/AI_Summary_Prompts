@@ -49,3 +49,5 @@ class WordCollection:
 
     def vocab_size(self):
         return len(self.index2word)
+    
+tokenizer = WordCollection()

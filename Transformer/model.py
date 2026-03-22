@@ -1,4 +1,5 @@
 import numpy as np
+import os 
 
 class Embedding:
     def __init__(self, vocab_size, d_model, seq_len, mean=0, std=0.1):
@@ -327,3 +328,22 @@ class MiniTransformer:
         dX = self.output.backward(dlogits, lr)
         dX = self.block.backward(dX, lr)
         self.embedding.backward(dX, lr)
+
+
+WEIGHTS_PATH = "weights/"
+
+model = MiniTransformer(vocab_size=1000)
+
+def save_model_weights(model):
+    os.makedirs(WEIGHTS_PATH, exist_ok=True)
+    np.save(WEIGHTS_PATH + "embedding.npy", model.embedding.embeddings)
+    np.save(WEIGHTS_PATH + "W_out.npy", model.output.W)
+    print("Model is saved")
+
+def load_model_weights(model):
+    try:
+        model.embedding.embeddings = np.load(WEIGHTS_PATH + "embedding.npy")
+        model.output.W = np.load(WEIGHTS_PATH + "W_out.npy")
+        print("Load model")
+    except FileNotFoundError:
+        print("Initializing model")
