@@ -1,29 +1,34 @@
-# AGENTS.md - Mini LLM From Scratch
+# AGENTS.md - AI Agent + Local GPT System
 
 This document provides guidance for AI agents working in this repository.
 
 ## Project Overview
-This is a minimal Transformer-based LLM built from scratch in Python/NumPy to understand modern language model internals. The model learns to convert natural user input into structured AI prompt instructions.
+This project combines a cloud-based AI agent with a local lightweight GPT model to create a specialized AI assistant. The system refines queries, improves responses, and adapts to user feedback using both local and cloud AI components.
 
 ## Build/Lint/Test Commands
 
 ### Running Tests
-- Run all tests: `cd Transformer && python -m pytest`
+- Run all Transformer tests: `cd Transformer && python -m pytest`
 - Run tokenizer tests: `cd Transformer && python test_tokenizer.py`
 - Run dataset tests: `cd Transformer && python test_dataset.py`
+- Run AI agent tests: `python -m pytest AI_agent/`
+- Run a specific test file: `python -m pytest path/to/test_file.py::test_function_name`
 
 ### Testing Single Components
 - Tokenizer: `cd Transformer && python -c "from tokenizer import WordCollection; tc = WordCollection(); print('Tokenizer works')"`
 - Dataset: `cd Transformer && python -c "from dataset import TextDataset; print('Dataset works')"`
 - Model: `cd Transformer && python -c "from model import Embedding; print('Model imports OK')"`
+- AI agent: `python -c "from AI_agent.agent import cloud_agent; print('Agent imports OK')"`
+- Main CLI: `python main.py --help`
+
+### Linting and Formatting
+- Format code: `black .`
+- Lint with flake8: `flake8 .`
+- Type checking: `mypy . --strict`
+- Check Python syntax: `python -m py_compile Transformer/*.py AI_agent/*.py config/*.py`
 
 ### No Build System Required
-This is a pure Python/NumPy project with no external dependencies beyond NumPy. No compilation or build steps are needed.
-
-### Code Validation
-- Check Python syntax: `python -m py_compile Transformer/*.py`
-- Run type hints check (if added): `python -m mypy Transformer/ --strict`
-- Import validation: `cd Transformer && python -c "import config, tokenizer, dataset, model"`
+This is a pure Python project with minimal dependencies (NumPy, OpenAI). No compilation or build steps are needed.
 
 ## Code Style Guidelines
 
@@ -92,6 +97,16 @@ Transformer/
 ├── generate.py        # Text generation
 ├── test_tokenizer.py  # Tokenizer tests
 └── test_dataset.py    # Dataset tests
+AI_agent/
+├── agent.py           # Main agent logic
+├── cli.py             # Command-line interface
+├── memory.py          # Memory/logging system
+├── router.py          # Query routing
+├── rag.py             # Retrieval-augmented generation
+└── __init__.py
+config/
+├── config.py          # Project configuration
+└── .env               # Environment variables
 ```
 
 ### NumPy Usage Guidelines
@@ -133,6 +148,9 @@ Transformer/
 - **Adding datasets**: Follow TextDataset pattern
 - **Writing tests**: Use existing test_*.py as templates
 - **Fixing bugs**: Check shape mismatches, NumPy operations
+
+### Tools
+You have access to a set of tools you can use to answer the user's question.
 
 ## Environment
 - Python 3.13.5+
