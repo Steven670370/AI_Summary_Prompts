@@ -1,6 +1,7 @@
 import numpy as np
 from model import softmax, MiniTransformer
-from AI_agent.memory import has_enough_data, get_high_quality_logs
+from AI_agent.memory import get_high_quality_logs
+from AI_agent.router import has_enough_data
 from Transformer.tokenizer import tokenizer
 from Transformer.model import save_model_weights
 
