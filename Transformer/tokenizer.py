@@ -1,5 +1,8 @@
 # tokenizer.py
 
+import re
+
+
 class WordEntry:
     """
     Store one canonical word and its surface variants.
@@ -50,4 +53,8 @@ class WordCollection:
     def vocab_size(self):
         return len(self.index2word)
     
+    def tokenize(self, sentence):
+        words = re.findall(r"\b\w+\b", sentence.lower())
+        return [self.encode(w) for w in words]
+
 tokenizer = WordCollection()

@@ -3,9 +3,7 @@ from AI_agent.memory import get_high_quality_logs
 knowledge_base = []
 
 def update_knowledge():
-    from AI_agent.memory import get_good_data
-
-    new_data = get_good_data()
+    new_data = get_high_quality_logs(min_rating=4)
 
     for q, r in new_data:
         knowledge_base.append((q, r))
@@ -22,4 +20,4 @@ def retrieve(query):
         if any(word in q for word in query.split()):
             results.append((q, r))
 
-    return results[:3]  # top 3
+    return results[:3]
